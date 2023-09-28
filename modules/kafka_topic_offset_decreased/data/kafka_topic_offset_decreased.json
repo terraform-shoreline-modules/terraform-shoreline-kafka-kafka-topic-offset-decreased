@@ -1,0 +1,178 @@
+{
+  "name": "kafka_topic_offset_decreased",
+  "description": "This incident type refers to a situation where the Kafka topic offset has decreased. Kafka is a distributed streaming platform that is used for building real-time data pipelines and streaming applications. The offset is a unique identifier for a message within a Kafka partition. A decrease in the offset value means that some messages have been lost or deleted, which can result in data inconsistency and loss of critical information. This type of incident requires immediate attention to investigate the root cause and prevent further data loss.",
+  "params": [
+    {
+      "name": "KAFKA_BOOTSTRAP_SERVER",
+      "value": ""
+    },
+    {
+      "name": "ZOOKEEPER_PORT",
+      "value": ""
+    },
+    {
+      "name": "SERVER_PORT",
+      "value": ""
+    },
+    {
+      "name": "KAFKA_OFFSET_VALUE",
+      "value": ""
+    },
+    {
+      "name": "CONSUMER_GROUP_NAME",
+      "value": ""
+    },
+    {
+      "name": "ZOOKEEPER_HOST",
+      "value": ""
+    },
+    {
+      "name": "COMMA_SEPARATED_PARTITION_IDS",
+      "value": ""
+    },
+    {
+      "name": "TOPIC_NAME",
+      "value": ""
+    },
+    {
+      "name": "HOST_NAME",
+      "value": ""
+    },
+    {
+      "name": "K8S_CLUSTER_NAME",
+      "value": ""
+    },
+    {
+      "name": "NAMESPACE",
+      "value": ""
+    }
+  ],
+  "cells": [
+    {
+      "name": "cell_1",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Kafka topic offset decreased\nThis incident type refers to a situation where the Kafka topic offset has decreased. Kafka is a distributed streaming platform that is used for building real-time data pipelines and streaming applications. The offset is a unique identifier for a message within a Kafka partition. A decrease in the offset value means that some messages have been lost or deleted, which can result in data inconsistency and loss of critical information. This type of incident requires immediate attention to investigate the root cause and prevent further data loss."
+    },
+    {
+      "name": "cell_2",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Find the Kafka broker IDs for the given topic"
+    },
+    {
+      "name": "cell_3",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `kafka-topics.sh --bootstrap-server ${SERVER_PORT} --describe --topic ${TOPIC_NAME}`"
+    },
+    {
+      "name": "cell_4",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Check if any partitions are under-replicated"
+    },
+    {
+      "name": "cell_5",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `kafka-topics.sh --bootstrap-server ${SERVER_PORT} --describe --under-replicated-partitions --topic ${TOPIC_NAME}`"
+    },
+    {
+      "name": "cell_6",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Get the latest offset for each partition"
+    },
+    {
+      "name": "cell_7",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `kafka-run-class.sh kafka.tools.GetOffsetShell --broker-list ${SERVER_PORT} --topic ${TOPIC_NAME} --time -1 --partitions ${COMMA_SEPARATED_PARTITION_IDS}`"
+    },
+    {
+      "name": "cell_8",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Get the earliest offset for each partition"
+    },
+    {
+      "name": "cell_9",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `kafka-run-class.sh kafka.tools.GetOffsetShell --broker-list ${SERVER_PORT} --topic ${TOPIC_NAME} --time -2 --partitions ${COMMA_SEPARATED_PARTITION_IDS}`"
+    },
+    {
+      "name": "cell_10",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Get the current offset for each partition"
+    },
+    {
+      "name": "cell_11",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `kafka-consumer-groups.sh --bootstrap-server ${SERVER_PORT} --group ${CONSUMER_GROUP_NAME} --describe | grep ${TOPIC_NAME}`"
+    },
+    {
+      "name": "cell_12",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Check if there are any missing messages in the topic"
+    },
+    {
+      "name": "cell_13",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `kafka-run-class.sh kafka.tools.GetOffsetShell --broker-list ${SERVER_PORT} --topic ${TOPIC_NAME} --time -1 | awk -F \":\" '{print $3}' | paste -sd+ | bc`"
+    },
+    {
+      "name": "cell_14",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Check if there are any duplicate messages in the topic"
+    },
+    {
+      "name": "cell_15",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `kafka-consumer-groups.sh --bootstrap-server ${SERVER_PORT} --group ${CONSUMER_GROUP_NAME} --describe | grep ${TOPIC_NAME} | awk '{print $5}' | uniq -d`"
+    },
+    {
+      "name": "cell_16",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Check if there is any lag in consuming messages"
+    },
+    {
+      "name": "cell_17",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `kafka-consumer-groups.sh --bootstrap-server ${SERVER_PORT} --describe --group ${CONSUMER_GROUP_NAME}`"
+    },
+    {
+      "name": "cell_18",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Check if the disk space is low on the Kafka brokers"
+    },
+    {
+      "name": "cell_19",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `df -h`"
+    },
+    {
+      "name": "cell_20",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## An application or a consumer that is consuming messages from Kafka may have accidentally or intentionally deleted some of the messages, causing the offset to decrease."
+    },
+    {
+      "name": "cell_21",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "host | host_name=$HOST_NAME | invoke_kafka_validation_script($KAFKA_BOOTSTRAP_SERVER, $ZOOKEEPER_PORT, $KAFKA_OFFSET_VALUE, $CONSUMER_GROUP_NAME, $ZOOKEEPER_HOST, $TOPIC_NAME)"
+    }
+  ]
+}
