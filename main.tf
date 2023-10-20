@@ -14,8 +14,8 @@ provider "shoreline" {
   debug = true
 }
 
-module "kafka_topic_offset_decreased" {
-  source    = "./modules/kafka_topic_offset_decreased"
+module "kafka_topic_offset_decreased_incident" {
+  source    = "./modules/kafka_topic_offset_decreased_incident"
 
   providers = {
     shoreline = shoreline

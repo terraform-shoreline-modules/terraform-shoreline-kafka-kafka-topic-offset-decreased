@@ -1,0 +1,166 @@
+{
+  "name": "kafka_topic_offset_decreased_incident",
+  "description": "This type of incident occurs when the offset of a Kafka topic decreases unexpectedly. In Kafka, an offset is a unique identifier that represents the position of a message within a partition. When the offset decreases, it means that some messages have been lost or deleted, which can cause data inconsistencies or other issues within the system. This incident type is critical for Kafka-based systems as it affects data integrity and can lead to data loss.",
+  "params": [
+    {
+      "name": "TOPIC_NAME",
+      "value": ""
+    },
+    {
+      "name": "GROUP_NAME",
+      "value": ""
+    },
+    {
+      "name": "KAFKA_BROKER",
+      "value": ""
+    },
+    {
+      "name": "PORT",
+      "value": ""
+    },
+    {
+      "name": "ZOOKEEPER_SERVER",
+      "value": ""
+    },
+    {
+      "name": "NEW_REPLICATION_FACTOR",
+      "value": ""
+    },
+    {
+      "name": "NUM_PARTITIONS",
+      "value": ""
+    },
+    {
+      "name": "CONFIG_FILE",
+      "value": ""
+    },
+    {
+      "name": "HOST_NAME",
+      "value": ""
+    },
+    {
+      "name": "K8S_CLUSTER_NAME",
+      "value": ""
+    },
+    {
+      "name": "NAMESPACE",
+      "value": ""
+    }
+  ],
+  "cells": [
+    {
+      "name": "cell_1",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Kafka topic offset decreased incident.\nThis type of incident occurs when the offset of a Kafka topic decreases unexpectedly. In Kafka, an offset is a unique identifier that represents the position of a message within a partition. When the offset decreases, it means that some messages have been lost or deleted, which can cause data inconsistencies or other issues within the system. This incident type is critical for Kafka-based systems as it affects data integrity and can lead to data loss."
+    },
+    {
+      "name": "cell_2",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## 1. Check if the Kafka broker is running"
+    },
+    {
+      "name": "cell_3",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `systemctl status kafka`"
+    },
+    {
+      "name": "cell_4",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## 2. Check if the topic exists"
+    },
+    {
+      "name": "cell_5",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `kafka-topics --zookeeper ${ZOOKEEPER_SERVER}:${PORT} --describe --topic ${TOPIC_NAME}`"
+    },
+    {
+      "name": "cell_6",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## 3. Check if the consumer is running"
+    },
+    {
+      "name": "cell_7",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `kafka-consumer-groups --bootstrap-server ${KAFKA_BROKER}:${PORT} --group ${GROUP_NAME} --describe`"
+    },
+    {
+      "name": "cell_8",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## 4. Check if the consumer is lagging behind"
+    },
+    {
+      "name": "cell_9",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `kafka-consumer-groups --bootstrap-server ${KAFKA_BROKER}:${PORT} --group ${GROUP_NAME} --describe | awk '{print $1,$6,$7,$8}'`"
+    },
+    {
+      "name": "cell_10",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## 5. Check if the topic has any messages"
+    },
+    {
+      "name": "cell_11",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `kafka-console-consumer --bootstrap-server ${KAFKA_BROKER}:${PORT} --topic ${TOPIC_NAME} --from-beginning --max-messages 1`"
+    },
+    {
+      "name": "cell_12",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## 6. Check the offset for the consumer"
+    },
+    {
+      "name": "cell_13",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `kafka-run-class kafka.tools.GetOffsetShell --broker-list ${KAFKA_BROKER}:${PORT} --topic ${TOPIC_NAME} --time -1 --group ${GROUP_NAME} | awk -F \":\" '{sum += $3} END {print sum}'`"
+    },
+    {
+      "name": "cell_14",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## 9. Check if any partition is under-replicated"
+    },
+    {
+      "name": "cell_15",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `kafka-topics --zookeeper ${ZOOKEEPER_SERVER}:${PORT} --describe --under-replicated-partitions`"
+    },
+    {
+      "name": "cell_16",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Increase the replication factor of the Kafka topic to prevent data loss and ensure that data is not lost in the event of an offset decrease."
+    },
+    {
+      "name": "cell_17",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "host | host_name=$HOST_NAME | invoke_increase_replication($ZOOKEEPER_SERVER, $NEW_REPLICATION_FACTOR, $NUM_PARTITIONS)"
+    },
+    {
+      "name": "cell_18",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Check the configuration settings of the Kafka topic to make sure that the offset is not set to decrease automatically. If this is the case, change the configuration setting to prevent automatic decreases in the future."
+    },
+    {
+      "name": "cell_19",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "host | host_name=$HOST_NAME | invoke_auto_offset_reset_script($TOPIC_NAME, $CONFIG_FILE)"
+    }
+  ]
+}
